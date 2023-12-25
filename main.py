@@ -28,9 +28,11 @@ class ControleEstoqueApp:
 
         tk.Button(btn_frame, text="Carregar Dados", command=self.carregar_dados).pack(side=tk.LEFT, padx=10)
         tk.Button(btn_frame, text="Adicionar Dados", command=self.adicionar_dados).pack(side=tk.LEFT, padx=10)
-        tk.Button(btn_frame, text="Editar Dados", command=self.preparar_editar).pack(side=tk.LEFT, padx=10)
+    #    tk.Button(btn_frame, text="Editar Dados", command=self.preparar_editar).pack(side=tk.LEFT, padx=10)
         tk.Button(btn_frame, text="Excluir Dados", command=self.excluir_dados).pack(side=tk.LEFT, padx=10)
         tk.Button(btn_frame, text="Salvar Alterações", command=self.salvar_alteracoes).pack(side=tk.LEFT, padx=10)
+
+        self.tree.bind("<ButtonRelease-1>", self.preparar_editar)
 
     def carregar_dados(self):
         try:
@@ -46,10 +48,10 @@ class ControleEstoqueApp:
             self.df = pd.concat([self.df, novo_df], ignore_index=True)
             self.atualizar_treeview()
 
-    def preparar_editar(self):
+    def preparar_editar(self, event):
         selected_item = self.tree.selection()
         if selected_item:
-            coluna_clicada = self.tree.identify_column(self.root.winfo_pointerx() - self.root.winfo_rootx())
+            coluna_clicada = self.tree.identify_column(event.x)
             coluna_nome = self.tree.heading(coluna_clicada, "text")
             linha_clicada = self.tree.index(selected_item[0])
 
