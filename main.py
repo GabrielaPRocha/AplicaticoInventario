@@ -1,15 +1,17 @@
 import pandas as pd
 import tkinter as tk
-from tkinter import ttk, simpledialog, messagebox
+from tkinter import ttk, simpledialog, messagebox, Entry
 
 class ControleEstoqueApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Controle de Estoque")
         self.root.geometry("1500x400")
+        self.entry_pesquisa = tk.Entry(self.root)  # Correção: troque Entry para tk.Entry
+        self.entry_pesquisa.pack(pady=10, padx=10, side="top")
 
         self.df = pd.DataFrame(columns=["Nome", "OC/OG", "OLD USER", "FABRICANTE", "MODELO", "S/N", "ATIVO",
-                                        "CARREGADOR", "VENDOR", "NF", "DATA", "Valor Unitario",
+                                        "CARREGADOR", "VENDEDOR", "NF", "DATA", "Valor Unitario",
                                         "Valor Residual", "Status de Venda"])
 
         self.criar_interface()
@@ -31,9 +33,20 @@ class ControleEstoqueApp:
     #    tk.Button(btn_frame, text="Editar Dados", command=self.preparar_editar).pack(side=tk.LEFT, padx=10)
         tk.Button(btn_frame, text="Excluir Dados", command=self.excluir_dados).pack(side=tk.LEFT, padx=10)
         tk.Button(btn_frame, text="Salvar Alterações", command=self.salvar_alteracoes).pack(side=tk.LEFT, padx=10)
+        ttk.Button(btn_frame, text="Pesquisar", command=self.pesquisar).pack(side="top", pady=5)
 
         self.tree.bind("<ButtonRelease-1>", self.preparar_editar)
 
+    def pesquisar(self):
+        termo_pesquisa = self.entry_pesquisa.get().strip()
+        if termo_pesquisa:
+            # Filtra o DataFrame para linhas que contêm o termo de pesquisa
+            df_filtrado = self.df[
+                self.df.apply(lambda row: termo_pesquisa.lower() in row.astype(str).str.lower().values.any(), axis=1)]
+            self.df = df_filtrado
+            self.atualizar_treeview()
+        else:
+            messagebox.showwarning("Aviso", "Digite um termo para pesquisa.")
     def carregar_dados(self):
         try:
             self.df = pd.read_excel("teste1912.xlsx")
