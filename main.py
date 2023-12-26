@@ -46,11 +46,13 @@ class ControleEstoqueApp:
             # Cria um novo DataFrame apenas com as linhas filtradas
             df_filtrado = self.df[
                 self.df.apply(lambda row: termo_pesquisa.lower() in row.astype(str).str.lower().values.any(), axis=1)]
-            # Atualiza as células alteradas e a data no DataFrame original
-            self.df.update(df_filtrado)
-            self.atualizar_treeview()
+            # Atualiza o Treeview com o novo DataFrame
+            self.atualizar_treeview(df_filtrado)
         else:
-            messagebox.showwarning("Aviso", "Digite um termo para pesquisa.")
+            # Se a pesquisa estiver vazia, atualize com o DataFrame original
+            self.atualizar_treeview()
+
+
 
     def carregar_dados(self):
         try:
@@ -122,18 +124,17 @@ class ControleEstoqueApp:
         else:
             messagebox.showinfo("Informação", "Nenhuma alteração a ser salva.")
 
-    def atualizar_treeview(self):
+    def atualizar_treeview(self, df=None):
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        for _, row in self.df.iterrows():
+        if df is None:
+            df = self.df
+
+        for _, row in df.iterrows():
             # Define a cor de fundo da célula como vermelha se a data de alteração estiver presente
             bg_color = "red" if row["Data Alteracao"] else "white"
             self.tree.insert("", "end", values=tuple(row), tags=(bg_color,))
-
-        # Configura as tags para colorir as células alteradas
-        self.tree.tag_configure("red", background="red")
-
     def obter_dados_adicao(self):
         novo_registro = {}
         for coluna in self.df.columns:
