@@ -1,18 +1,22 @@
 import pandas as pd
 import tkinter as tk
-from tkinter import ttk, simpledialog, messagebox, Entry
+from tkinter import ttk, simpledialog, messagebox
+from datetime import datetime
 
 class ControleEstoqueApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Controle de Estoque")
         self.root.geometry("1500x400")
-        self.entry_pesquisa = tk.Entry(self.root)  # Correção: troque Entry para tk.Entry
+        self.entry_pesquisa = tk.Entry(self.root)
         self.entry_pesquisa.pack(pady=10, padx=10, side="top")
 
         self.df = pd.DataFrame(columns=["Nome", "OC/OG", "OLD USER", "FABRICANTE", "MODELO", "S/N", "ATIVO",
                                         "CARREGADOR", "VENDEDOR", "NF", "DATA", "Valor Unitario",
                                         "Valor Residual", "Status de Venda"])
+
+        # Adiciona coluna para rastrear a última data de alteração
+        self.df["Data Alteracao"] = ""
 
         self.criar_interface()
 
@@ -30,9 +34,8 @@ class ControleEstoqueApp:
 
         tk.Button(btn_frame, text="Carregar Dados", command=self.carregar_dados).pack(side=tk.LEFT, padx=10)
         tk.Button(btn_frame, text="Adicionar Dados", command=self.adicionar_dados).pack(side=tk.LEFT, padx=10)
-    #    tk.Button(btn_frame, text="Editar Dados", command=self.preparar_editar).pack(side=tk.LEFT, padx=10)
         tk.Button(btn_frame, text="Excluir Dados", command=self.excluir_dados).pack(side=tk.LEFT, padx=10)
-        tk.Button(btn_frame, text="Salvar Alterações", command=self.salvar_alteracoes).pack(side=tk.LEFT, padx=10)
+        tk.Button(btn_frame, text="Salvar Alterações", command=self.perguntar_salvar_alteracoes).pack(side=tk.LEFT, padx=10)
         ttk.Button(btn_frame, text="Pesquisar", command=self.pesquisar).pack(side="top", pady=5)
 
         self.tree.bind("<ButtonRelease-1>", self.preparar_editar)
@@ -40,16 +43,20 @@ class ControleEstoqueApp:
     def pesquisar(self):
         termo_pesquisa = self.entry_pesquisa.get().strip()
         if termo_pesquisa:
-            # Filtra o DataFrame para linhas que contêm o termo de pesquisa
+            # Cria um novo DataFrame apenas com as linhas filtradas
             df_filtrado = self.df[
                 self.df.apply(lambda row: termo_pesquisa.lower() in row.astype(str).str.lower().values.any(), axis=1)]
-            self.df = df_filtrado
+            # Atualiza as células alteradas e a data no DataFrame original
+            self.df.update(df_filtrado)
             self.atualizar_treeview()
         else:
             messagebox.showwarning("Aviso", "Digite um termo para pesquisa.")
+
     def carregar_dados(self):
         try:
             self.df = pd.read_excel("teste1912.xlsx")
+            # Adiciona a coluna "Data Alteracao" para o DataFrame carregado
+            self.df["Data Alteracao"] = ""
             self.atualizar_treeview()
         except FileNotFoundError:
             messagebox.showerror("Erro", "Arquivo não encontrado.")
@@ -58,10 +65,14 @@ class ControleEstoqueApp:
         novo_registro = self.obter_dados_adicao()
         if novo_registro:
             novo_df = pd.DataFrame([novo_registro], columns=self.df.columns)
+            novo_df["Data Alteracao"] = ""  # Adiciona a coluna "Data Alteracao" para o novo registro
             self.df = pd.concat([self.df, novo_df], ignore_index=True)
             self.atualizar_treeview()
 
     def preparar_editar(self, event):
+        # Remova a marcação da célula como alterada ao editar
+        self.tree.tag_configure("red", background="white")
+
         selected_item = self.tree.selection()
         if selected_item:
             coluna_clicada = self.tree.identify_column(event.x)
@@ -81,7 +92,10 @@ class ControleEstoqueApp:
                                                 initialvalue=valor_atual)
 
             if novo_valor is not None:
+                # Atualiza o valor na célula
                 self.df.at[linha_clicada, coluna_nome] = novo_valor
+                # Atualiza a data da alteração
+                self.df.at[linha_clicada, "Data Alteracao"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 self.atualizar_treeview()
 
     def excluir_dados(self):
@@ -91,15 +105,34 @@ class ControleEstoqueApp:
             self.df = self.df.drop(index=linha_clicada)
             self.atualizar_treeview()
 
+    def perguntar_salvar_alteracoes(self):
+        # Pergunta se realmente deseja salvar as alterações
+        resposta = messagebox.askyesno("Salvar Alterações", "Deseja realmente salvar as alterações?")
+        if resposta:
+            self.salvar_alteracoes()
+
     def salvar_alteracoes(self):
-        self.df.to_excel("teste1912.xlsx", index=False)
+        # Salva apenas as linhas alteradas
+        df_alterado = self.df[self.df["Data Alteracao"].notnull()]
+        if not df_alterado.empty:
+            df_alterado.to_excel("teste1912.xlsx", index=False)
+            # Reseta a data da alteração
+            self.df["Data Alteracao"] = ""
+            self.atualizar_treeview()
+        else:
+            messagebox.showinfo("Informação", "Nenhuma alteração a ser salva.")
 
     def atualizar_treeview(self):
         for item in self.tree.get_children():
             self.tree.delete(item)
 
         for _, row in self.df.iterrows():
-            self.tree.insert("", "end", values=tuple(row))
+            # Define a cor de fundo da célula como vermelha se a data de alteração estiver presente
+            bg_color = "red" if row["Data Alteracao"] else "white"
+            self.tree.insert("", "end", values=tuple(row), tags=(bg_color,))
+
+        # Configura as tags para colorir as células alteradas
+        self.tree.tag_configure("red", background="red")
 
     def obter_dados_adicao(self):
         novo_registro = {}
